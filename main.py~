@@ -1,0 +1,87 @@
+""" Will Luckin <will@luckin.co.uk> """
+
+import numpy as np
+import pygame
+from numpy.linalg import norm
+
+# import sympy as s
+# from sympy.parsing.sympy_parser import parse_expr
+
+# def eval_expr(expr, x_):
+#     """ Evaluate the expression with a given x value. If the expression
+#     isn't numerical at this point, return false. Else, return the value.
+#     """
+#     try:
+#         x = s.symbols("x")
+#         return float(expr.subs(x, x_))
+#     except TypeError:
+#         return False
+
+# # Accept input from the user as a sympy expression; handle all possible errors
+# print "Please input an expression."
+# expr = raw_input()
+# test = parse_expr(expr)
+# print eval_expr(test, 1)
+
+orbiters = []
+g = 9.81
+c = 3e8
+
+WIDTH = 1280
+HEIGHT = 720
+
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("will.luckin.co.uk")
+clock = pygame.time.Clock()
+
+class orbiter(object):
+    """ Represent a gravitational object """
+    def __init__(self, **kwargs):
+        self.mass = kwargs.get("mass") or 1
+        self.pos = kwargs.pop("pos", np.array([0., 0.]))
+        self.vel = kwargs.pop("vel", np.array([0., 0.]))
+        self.acc = kwargs.pop("acc", np.array([0., 0.]))
+        self.color = kwargs.pop("color", (100, 100, 100))
+        self.acc_ = self.acc
+        orbiters.append(self)
+
+    def calcAccel(self, orbs):
+        """ Calculate the acceleration of this object based on all objects
+        in the orbiters list. Save this to a temporary local variable to
+        update after all calculations have been completed. """
+        self.acc_ = np.array([0., 0.])
+        for orb in orbs:
+            if orb == self:
+                pass
+            else:
+                r = self.pos - orb.pos
+                self.acc_ -= ((g*orb.mass)/norm(r)**3)*r
+
+    def update(self, dt):
+        """ Commits the acceleration changes made after all calculations are complete """
+        self.acc = self.acc_
+        self.vel += (self.acc * dt)
+        self.pos += (self.vel * dt)
+
+    def draw(self):
+        """ Renders the object to the pygame canvas """
+        pygame.draw.circle(screen, self.color,
+                           (self.pos[0:2]+[WIDTH/2, HEIGHT/2]).astype(int), 10)
+
+danwoods = orbiter(vel=np.array([0, 100]))
+danwoods2 = orbiter(pos=np.array([100, 10]), mass=200000, color=(250, 0, 0))
+danwoods3 = orbiter(vel=np.array([200, 0]), pos=np.array([100, 100]))
+
+print orbiters
+
+while True:
+    screen.fill((0, 0, 0))
+    dt = clock.tick(60)/1000.
+    for i in orbiters:
+        i.calcAccel(orbiters)
+    for i in orbiters:
+        i.update(dt)
+        i.draw()
+        print i.pos
+    pygame.display.flip()
