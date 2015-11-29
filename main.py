@@ -38,21 +38,22 @@ c = 3e8
 
 dt = 16./1000.
 
-PARTICLES = 50
+PARTICLES = 5
 
 # Generate figure and axis object
 fig = plt.figure()
-ax = fig.add_subplot(111)  # new method to create 3d plots
+ax = fig.add_subplot(111, projection="3d")  # new method to create 3d plots
 ax.set_xlim(-1000, 1000)
 ax.set_ylim(-1000, 1000)
+ax.set_zlim(-1000, 1000)
 
 class orbiter(object):
     """ Represent a gravitational object """
     def __init__(self, **kwargs):
         self.mass = kwargs.get("mass") or 1.
-        self.pos = kwargs.pop("pos", np.array([0., 0.]))
-        self.vel = kwargs.pop("vel", np.array([0., 0.]))
-        self.acc = kwargs.pop("acc", np.array([0., 0.]))
+        self.pos = kwargs.pop("pos", np.array([0., 0., 0.]))
+        self.vel = kwargs.pop("vel", np.array([0., 0., 0.]))
+        self.acc = kwargs.pop("acc", np.array([0., 0., 0.]))
         self.radius = 0.2*self.mass**(1/3.)
         self.line = kwargs.pop("line", ax.plot(np.array([self.pos[0]]), np.array([self.pos[1]])))[0]
         self.path = []
@@ -63,7 +64,7 @@ class orbiter(object):
         """ Calculate the acceleration of this object based on all objects
         in the orbiters list. Save this to a temporary local variable to
         update after all calculations have been completed. """
-        self.acc_ = np.array([0., 0.])  # Bind temporary variable to zero
+        self.acc_ = np.array([0., 0., 0.])  # Bind temporary variable to zero
         for orb in orbiters:
             if orb == self:  # Don't calculate the gravitational force exerted on itself
                 pass
@@ -87,7 +88,7 @@ class orbiter(object):
                             orb.vel = ((self.mass/(self.mass + orb.mass))*self.vel +
                                        (orb.mass/(self.mass + orb.mass))*orb.vel)
                             orb.radius = 0.2*orb.mass**(1/3.)
-                            orb.acc = np.array([0., 0.])
+                            orb.acc = np.array([0., 0., 0.])
                         except ValueError:
                             # object already removed
                             pass
@@ -107,6 +108,7 @@ class orbiter(object):
     def draw(self):
         """ Mutates the line to change the path that was plotted """
         self.line.set_data(np.array(self.path)[:, 0], np.array(self.path)[:, 1])
+        self.line.set_3d_properties(np.array(self.path)[:, 2])
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
 # danwoods2 = orbiter(pos=np.array([0., 0.]), mass=100000., color=(200, 0, 0))
@@ -120,15 +122,15 @@ class orbiter(object):
 
 # Generate some random particles
 for i in range(1, PARTICLES):
-    pos_ = (rand(2)*800)-400
-    line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]))
+    pos_ = (rand(3)*800)-400
+    line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]), np.array([pos_[2]]))
     orbiter(pos=pos_,
             line=line,
-            vel=np.array([pos_[1]/2, -pos_[0]/2]),
+            vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]]),
             mass=np.random.ranf()*100000)
 
 danwoods = orbiter(mass=7500000.,
-                   pos=np.array([0., 0.]))
+                   pos=np.array([0., 0., 0.]))
 
 def animate(N):
     for i in orbiters:
