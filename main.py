@@ -1,9 +1,11 @@
 """ Will Luckin <will@luckin.co.uk> """
 
 import numpy as np
-import pygame
 from numpy.linalg import norm
 from numpy.random import rand
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+from mpl_toolkits.mplot3d import Axes3D
 
 # import sympy as s
 # from sympy.parsing.sympy_parser import parse_expr
@@ -34,16 +36,15 @@ g = 5.
 # Speed of light
 c = 3e8
 
-# Screen parameters
-WIDTH = 1920
-HEIGHT = 1080
+dt = 16./1000.
+
 PARTICLES = 50
 
-# Initialise the game library, change rendering parameters
-pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("will.luckin.co.uk")
-clock = pygame.time.Clock()
+# Generate figure and axis object
+fig = plt.figure()
+ax = fig.add_subplot(111)  # new method to create 3d plots
+ax.set_xlim(-1000, 1000)
+ax.set_ylim(-1000, 1000)
 
 class orbiter(object):
     """ Represent a gravitational object """
@@ -53,7 +54,7 @@ class orbiter(object):
         self.vel = kwargs.pop("vel", np.array([0., 0.]))
         self.acc = kwargs.pop("acc", np.array([0., 0.]))
         self.radius = 0.2*self.mass**(1/3.)
-        self.color = kwargs.pop("color", (100, 100, 100))
+        self.line = kwargs.pop("line", ax.plot(np.array([self.pos[0]]), np.array([self.pos[1]])))[0]
         self.path = []
         self.acc_ = self.acc
         orbiters.append(self)
@@ -80,6 +81,7 @@ class orbiter(object):
                     if orb.mass > self.mass:
                         try:
                             orbiters.remove(self)
+                            self.line.set_data([0], [0])
                             dead_paths.append(self.path)
                             orb.mass = (self.mass + orb.mass)
                             orb.vel = ((self.mass/(self.mass + orb.mass))*self.vel +
@@ -95,20 +97,16 @@ class orbiter(object):
                     # Calculate the acceleration based upon all other objects
                     self.acc_ -= (g*orb.mass/(norm(r)**3))*r
 
-    def update(self, dt_):
+    def update(self, dt):
         """ Commits the acceleration changes made after all calculations are complete """
         self.acc = self.acc_
-        self.vel += (self.acc * dt_)
-        self.path.append(list(self.pos + np.array([WIDTH/2, HEIGHT/2])))
-        self.pos += (self.vel * dt_)
+        self.vel += (self.acc * dt)
+        self.path.append(list(self.pos))
+        self.pos += (self.vel * dt)
 
     def draw(self):
-        """ Renders the object to the pygame canvas """
-        pygame.draw.circle(screen, self.color,
-                           (self.pos+[WIDTH/2, HEIGHT/2]).astype(int),
-                           int(self.radius))
-        if len(self.path) > 2:
-            pygame.draw.aalines(screen, self.color, False, self.path)
+        """ Mutates the line to change the path that was plotted """
+        self.line.set_data(np.array(self.path)[:, 0], np.array(self.path)[:, 1])
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
 # danwoods2 = orbiter(pos=np.array([0., 0.]), mass=100000., color=(200, 0, 0))
@@ -123,21 +121,16 @@ class orbiter(object):
 # Generate some random particles
 for i in range(1, PARTICLES):
     pos_ = (rand(2)*800)-400
+    line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]))
     orbiter(pos=pos_,
+            line=line,
             vel=np.array([pos_[1]/2, -pos_[0]/2]),
-            mass=np.random.ranf()*100000,
-            color=(np.random.randint(1, 255),
-                   np.random.randint(1, 255),
-                   np.random.randint(1, 255)))
+            mass=np.random.ranf()*100000)
 
 danwoods = orbiter(mass=7500000.,
                    pos=np.array([0., 0.]))
 
-done = False
-
-while not done:
-    screen.fill((0, 0, 0))
-    dt = clock.tick(60)/1000.
+def animate(N):
     for i in orbiters:
         i.calcInteractions()
     for i in orbiters:
@@ -145,10 +138,10 @@ while not done:
         i.draw()
     for i in dead_paths:
         try:
-            pygame.draw.aalines(screen, (100, 100, 100), False, i, 50)
+            #pygame.draw.aalines(screen, (100, 100, 100), False, i, 50)
+            pass
         except ValueError:
             dead_paths.remove(i)
-    pygame.display.flip()
 
     # while len(orbiters) < PARTICLES:
     #     pos_ = (rand(2)*800)-400
@@ -159,10 +152,7 @@ while not done:
     #                    np.random.randint(1, 255),
     #                    np.random.randint(1, 255)))
 
-    print PARTICLES
-    print(len(orbiters))
-    for event in pygame.event.get(): # User did something
-        if event.type == pygame.QUIT: # If user clicked close
-            done = True # Flag that we are done so we exit this loop
+line_ani = anim.FuncAnimation(fig, animate, None,
+                              interval=10)
 
-pygame.quit()
+fig.show()
