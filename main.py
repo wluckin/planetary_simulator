@@ -5,6 +5,8 @@ from numpy.linalg import norm
 from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
+import matplotlib.cm as cm
+import time
 from mpl_toolkits.mplot3d import Axes3D
 
 # import sympy as s
@@ -29,8 +31,6 @@ from mpl_toolkits.mplot3d import Axes3D
 # Initialise global variables
 # Holds all orbiting objects
 orbiters = []
-# Holds all dead paths
-dead_paths = []
 # G
 g = 5.
 # Speed of light
@@ -38,7 +38,7 @@ c = 3e8
 
 dt = 16./1000.
 
-PARTICLES = 5
+PARTICLES = 15
 
 # Generate figure and axis object
 fig = plt.figure()
@@ -46,6 +46,13 @@ ax = fig.add_subplot(111, projection="3d")  # new method to create 3d plots
 ax.set_xlim(-1000, 1000)
 ax.set_ylim(-1000, 1000)
 ax.set_zlim(-1000, 1000)
+
+# Use colourmap
+colourmap = cm.get_cmap("coolwarm")
+
+def mass_to_color(mass, max_mass):
+    """ Takes a mass and returns a matplotlib color value """
+    return colourmap(int((255./np.log(max_mass))*np.log(mass)))
 
 class orbiter(object):
     """ Represent a gravitational object """
@@ -58,6 +65,9 @@ class orbiter(object):
         self.line = kwargs.pop("line", ax.plot(np.array([self.pos[0]]), np.array([self.pos[1]])))[0]
         self.path = []
         self.acc_ = self.acc
+
+        self.line.set_color(mass_to_color(self.mass, 7500000))
+        
         orbiters.append(self)
 
     def calcInteractions(self):
@@ -81,9 +91,10 @@ class orbiter(object):
                         #         acc=np.array([0., 0.]))
                     if orb.mass > self.mass:
                         try:
+                            # Stop calculating for this particle
                             orbiters.remove(self)
-                            self.line.set_data([0], [0])
-                            dead_paths.append(self.path)
+                            # Make the path grey
+                            self.line.set_color((0.5, 0.5, 0.5))
                             orb.mass = (self.mass + orb.mass)
                             orb.vel = ((self.mass/(self.mass + orb.mass))*self.vel +
                                        (orb.mass/(self.mass + orb.mass))*orb.vel)
@@ -107,8 +118,8 @@ class orbiter(object):
 
     def draw(self):
         """ Mutates the line to change the path that was plotted """
-        self.line.set_data(np.array(self.path)[:, 0], np.array(self.path)[:, 1])
-        self.line.set_3d_properties(np.array(self.path)[:, 2])
+        self.line.set_data(np.array(self.path)[-100:, 0], np.array(self.path)[-100:, 1])
+        self.line.set_3d_properties(np.array(self.path)[-100:, 2])
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
 # danwoods2 = orbiter(pos=np.array([0., 0.]), mass=100000., color=(200, 0, 0))
@@ -126,24 +137,28 @@ for i in range(1, PARTICLES):
     line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]), np.array([pos_[2]]))
     orbiter(pos=pos_,
             line=line,
-            vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]]),
-            mass=np.random.ranf()*100000)
+            vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
+            mass=np.random.ranf()*10000)
 
 danwoods = orbiter(mass=7500000.,
                    pos=np.array([0., 0., 0.]))
 
+# Keep track of time
+systime = time.clock()
+
 def animate(N):
+    """ Step the animation forward """
+    # If the variable dt_ is used as the i.update(dt_) timestep, the
+    # simulation will prefer keeping the same simualtion speed to the
+    # same accuracy. This might lead to a terrible simulation
+    global systime
+    dt_ = time.clock() - systime
+    systime = time.clock()
     for i in orbiters:
         i.calcInteractions()
     for i in orbiters:
-        i.update(dt)
+        i.update(dt_)
         i.draw()
-    for i in dead_paths:
-        try:
-            #pygame.draw.aalines(screen, (100, 100, 100), False, i, 50)
-            pass
-        except ValueError:
-            dead_paths.remove(i)
 
     # while len(orbiters) < PARTICLES:
     #     pos_ = (rand(2)*800)-400
