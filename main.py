@@ -30,13 +30,14 @@ orbiters = []
 # Holds all dead paths
 dead_paths = []
 # G
-g = 10
+g = 5.
 # Speed of light
 c = 3e8
 
 # Screen parameters
-WIDTH = 1280
-HEIGHT = 720
+WIDTH = 1920
+HEIGHT = 1080
+PARTICLES = 50
 
 # Initialise the game library, change rendering parameters
 pygame.init()
@@ -51,6 +52,7 @@ class orbiter(object):
         self.pos = kwargs.pop("pos", np.array([0., 0.]))
         self.vel = kwargs.pop("vel", np.array([0., 0.]))
         self.acc = kwargs.pop("acc", np.array([0., 0.]))
+        self.radius = 0.2*self.mass**(1/3.)
         self.color = kwargs.pop("color", (100, 100, 100))
         self.path = []
         self.acc_ = self.acc
@@ -66,7 +68,7 @@ class orbiter(object):
                 pass
             else:
                 r = self.pos - orb.pos  # Calculate the radius
-                if norm(r) < 10: # If two things collide
+                if norm(r) < (abs(self.radius) + abs(orb.radius)): # If two things collide
                         # orbiters.remove(self)  # Remove the things
                         # orbiters.remove(orb)
                         # # Create a new combined thing via conserving momentum
@@ -76,13 +78,17 @@ class orbiter(object):
                         #              (orb.mass/(self.mass + orb.mass))*orb.vel),
                         #         acc=np.array([0., 0.]))
                     if orb.mass > self.mass:
-                        orbiters.remove(self)
-                        dead_paths.append(self.path)
-                        orb.pos = (self.pos + orb.pos)/2
-                        orb.mass = (self.mass + orb.mass)
-                        orb.vel = ((self.mass/(self.mass + orb.mass))*self.vel +
-                                   (orb.mass/(self.mass + orb.mass))*orb.vel)
-                        orb.acc = np.array([0., 0.])
+                        try:
+                            orbiters.remove(self)
+                            dead_paths.append(self.path)
+                            orb.mass = (self.mass + orb.mass)
+                            orb.vel = ((self.mass/(self.mass + orb.mass))*self.vel +
+                                       (orb.mass/(self.mass + orb.mass))*orb.vel)
+                            orb.radius = 0.2*orb.mass**(1/3.)
+                            orb.acc = np.array([0., 0.])
+                        except ValueError:
+                            # object already removed
+                            pass
                     else:
                         pass
                 else:
@@ -99,9 +105,10 @@ class orbiter(object):
     def draw(self):
         """ Renders the object to the pygame canvas """
         pygame.draw.circle(screen, self.color,
-                           (self.pos+[WIDTH/2, HEIGHT/2]).astype(int), int(0.2*self.mass**(1/3.)))
+                           (self.pos+[WIDTH/2, HEIGHT/2]).astype(int),
+                           int(self.radius))
         if len(self.path) > 2:
-            pygame.draw.aalines(screen, self.color, False, self.path, 50)
+            pygame.draw.aalines(screen, self.color, False, self.path)
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
 # danwoods2 = orbiter(pos=np.array([0., 0.]), mass=100000., color=(200, 0, 0))
@@ -114,13 +121,17 @@ class orbiter(object):
 # danwoods2 = orbiter(vel=np.array([0., -20.]), pos=np.array([0., 100.]), mass=2.)
 
 # Generate some random particles
-for i in range(1, 20):
-    orbiter(pos=(rand(2)*800)-400,
-            vel=(rand(2)*100)-50,
+for i in range(1, PARTICLES):
+    pos_ = (rand(2)*800)-400
+    orbiter(pos=pos_,
+            vel=np.array([pos_[1]/2, -pos_[0]/2]),
             mass=np.random.ranf()*100000,
             color=(np.random.randint(1, 255),
                    np.random.randint(1, 255),
                    np.random.randint(1, 255)))
+
+danwoods = orbiter(mass=7500000.,
+                   pos=np.array([0., 0.]))
 
 done = False
 
@@ -133,9 +144,23 @@ while not done:
         i.update(dt)
         i.draw()
     for i in dead_paths:
-        pygame.draw.aalines(screen, (100, 100, 100), False, i, 50)
+        try:
+            pygame.draw.aalines(screen, (100, 100, 100), False, i, 50)
+        except ValueError:
+            dead_paths.remove(i)
     pygame.display.flip()
 
+    # while len(orbiters) < PARTICLES:
+    #     pos_ = (rand(2)*800)-400
+    #     orbiter(pos=pos_,
+    #             vel=np.array([pos_[1]/2, -pos_[0]/2]),
+    #             mass=np.random.ranf()*100000,
+    #             color=(np.random.randint(1, 255),
+    #                    np.random.randint(1, 255),
+    #                    np.random.randint(1, 255)))
+
+    print PARTICLES
+    print(len(orbiters))
     for event in pygame.event.get(): # User did something
         if event.type == pygame.QUIT: # If user clicked close
             done = True # Flag that we are done so we exit this loop
