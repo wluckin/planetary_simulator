@@ -1,4 +1,4 @@
-""" Will Luckin <will@luckin.co.uk> """
+#""" Will Luckin <will@luckin.co.uk> """
 
 import numpy as np
 from numpy.linalg import norm
@@ -38,17 +38,17 @@ c = 3e8
 
 dt = 16./1000.
 
-PARTICLES = 15
+PARTICLES = 5
 
 # Generate figure and axis object
 fig = plt.figure()
-ax = fig.add_subplot(111, projection="3d")  # new method to create 3d plots
-ax.set_xlim(-1000, 1000)
-ax.set_ylim(-1000, 1000)
-ax.set_zlim(-1000, 1000)
+ax = fig.add_subplot(111, projection="3d")
+ax.set_xlim(-600, 600)
+ax.set_ylim(-600, 600)
+ax.set_zlim(-600, 600)
 
 # Use colourmap
-colourmap = cm.get_cmap("coolwarm")
+colourmap = cm.get_cmap("winter")
 
 def mass_to_color(mass, max_mass):
     """ Takes a mass and returns a matplotlib color value """
@@ -62,7 +62,10 @@ class orbiter(object):
         self.vel = kwargs.pop("vel", np.array([0., 0., 0.]))
         self.acc = kwargs.pop("acc", np.array([0., 0., 0.]))
         self.radius = 0.2*self.mass**(1/3.)
-        self.line = kwargs.pop("line", ax.plot(np.array([self.pos[0]]), np.array([self.pos[1]])))[0]
+        self.line = kwargs.pop("line", ax.plot(np.array([self.pos[0]]),
+                                               np.array([self.pos[1]]),
+                                               np.array([self.pos[2]])))[0]
+        
         self.path = []
         self.acc_ = self.acc
 
@@ -70,7 +73,7 @@ class orbiter(object):
         
         orbiters.append(self)
 
-    def calcInteractions(self):
+    def calcInteractions(self, dt):
         """ Calculate the acceleration of this object based on all objects
         in the orbiters list. Save this to a temporary local variable to
         update after all calculations have been completed. """
@@ -107,7 +110,15 @@ class orbiter(object):
                         pass
                 else:
                     # Calculate the acceleration based upon all other objects
-                    self.acc_ -= (g*orb.mass/(norm(r)**3))*r
+                    def r_(r):
+                        """ Convenience function """
+                        return 0.5*dt**2*(g*orb.mass/(norm(r)**3))*r
+                    r_1 = r_(r)
+                    r_2= r_(r+((1/2.)*r_1))
+                    r_3 = r_(r+((1/2.)*r_2))
+                    r_4 = r_(r+r_3)
+                    r_total = (1/6.0)*(r_1 + r_4 + 2*(r_2 + r_3))
+                    self.acc_ -= (r_total/(0.5*dt**2))
 
     def update(self, dt):
         """ Commits the acceleration changes made after all calculations are complete """
@@ -118,8 +129,8 @@ class orbiter(object):
 
     def draw(self):
         """ Mutates the line to change the path that was plotted """
-        self.line.set_data(np.array(self.path)[-100:, 0], np.array(self.path)[-100:, 1])
-        self.line.set_3d_properties(np.array(self.path)[-100:, 2])
+        self.line.set_data(np.array(self.path)[:, 0], np.array(self.path)[:, 1])
+        self.line.set_3d_properties(np.array(self.path)[:, 2])
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
 # danwoods2 = orbiter(pos=np.array([0., 0.]), mass=100000., color=(200, 0, 0))
@@ -132,16 +143,25 @@ class orbiter(object):
 # danwoods2 = orbiter(vel=np.array([0., -20.]), pos=np.array([0., 100.]), mass=2.)
 
 # Generate some random particles
-for i in range(1, PARTICLES):
-    pos_ = (rand(3)*800)-400
+for i in range(0, PARTICLES):
+    pos_ = (rand(3)*1000)-400
     line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]), np.array([pos_[2]]))
     orbiter(pos=pos_,
             line=line,
             vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
             mass=np.random.ranf()*10000)
 
+# danwoods1 = orbiter(mass=10000,
+#                     pos=np.array([400., 400., 400.]),
+#                     vel=np.array([200., 0., 0.]))
+
+# danwoods2 = orbiter(mass=10000,
+#                     pos=np.array([-400., 400., 400.]),
+#                     vel=np.array([0., -200., 0.]))
+
 danwoods = orbiter(mass=7500000.,
-                   pos=np.array([0., 0., 0.]))
+                   pos=np.array([0., 0., 0.]),
+                   vel=np.array([0., 0., 0.]))
 
 # Keep track of time
 systime = time.clock()
@@ -155,7 +175,7 @@ def animate(N):
     dt_ = time.clock() - systime
     systime = time.clock()
     for i in orbiters:
-        i.calcInteractions()
+        i.calcInteractions(dt_)
     for i in orbiters:
         i.update(dt_)
         i.draw()
