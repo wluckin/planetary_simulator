@@ -1,15 +1,20 @@
 """ Will Luckin <will@luckin.co.uk> """
 
 import Tkinter as tk
+from orbiter import orbiter
+import numpy as np
+from numpy.random import rand
 
 class mainWindow(tk.Frame):
     """ Represents the main entry point of the application """
-    def __init__(self, master, funcs=[None, None, None, None]):
+    def __init__(self, master, orbiters, running, ax):
         tk.Frame.__init__(self, master)
+        self.orbiters = orbiters
+        self.running = running
+        self.ax = ax
         self.grid(column=0, row=0)
         self.inputFrame = tk.Frame(self)
         self.renderFrame = tk.Frame(self)
-        self.funcs = funcs
         self.createInputs()
         self.inputFrame.grid(column=0, row=0)
         self.renderFrame.grid(column=1, row=0)
@@ -21,20 +26,25 @@ class mainWindow(tk.Frame):
         timeBox = tk.LabelFrame(self.inputFrame, text="Time controls", padx=5, pady=5)
         timeBox.grid(column=0, row=0, sticky="news")
         timeInputs = []
-        timeInputs.append(tk.Button(timeBox, text="Pause the simulation", command=self.funcs[0]))
+        timeInputs.append(tk.Button(timeBox, text="Pause the simulation",
+                                    command=self.toggleRunning))
         timeInputs[-1].grid(column=0, row=0)
+
+        self.timeInputs = timeInputs
 
         # ADD THE "CREATE NEW SYSTEM" CONTROLS
 
         systemBox = tk.LabelFrame(self.inputFrame, text="Create a new system", padx=5, pady=5)
         systemBox.grid(column=0, row=1, sticky="news")
         systemInputs = []
-        systemInputs.append(tk.Label(systemBox, text="Number of initial orbiters"))
-        systemInputs[-1].grid(column=0, row=0)
+        tk.Label(systemBox, text="Number of initial orbiters").grid(column=0, row=0)
         systemInputs.append(tk.Scale(systemBox, from_=0, to=40, orient="horizontal"))
         systemInputs[-1].grid(column=1, row=0)
-        systemInputs.append(tk.Button(systemBox, text="Restart system", command=self.funcs[1]))
+        systemInputs.append(tk.Button(systemBox, text="Restart system",
+                                      command=self.restartSystem))
         systemInputs[-1].grid(column=0, row=1)
+
+        self.systemInputs = systemInputs
 
         # ADD THE "CREATE NEW" CONTROLS
         
@@ -88,8 +98,10 @@ class mainWindow(tk.Frame):
         # Add the "create" button
         createInputs.append({})
         createInputs[-1]["create"] = tk.Button(createBoxesWrapper2, text="Add orbiter",
-                                               command = self.funcs[2])
+                                               command = self.addOrbiter)
         createInputs[-1]["create"].grid(column=1, row=1, padx=5, pady=5, sticky="w e n s")
+
+        self.createInputs = createInputs
 
         # ADD THE "MODIFY ORBITER" CONTROLS
 
@@ -101,11 +113,10 @@ class mainWindow(tk.Frame):
         tk.Label(modifyBox, text="Select an existing orbiter to modify in the simulation").grid(
             column=0, row=0, sticky="n e w s")
         modifyInputs.append({})
-        modifyInputs[0]["orbiter"] = tk.Listbox(modifyBox, height=5)
+        self.selectedOrbiter = tk.StringVar(modifyBox)
+        modifyInputs[0]["orbiter"] = tk.OptionMenu(modifyBox, self.selectedOrbiter, "memes",
+                                                   command=self.selectOrbiter)
         modifyInputs[0]["orbiter"].grid(column=0, row=1, sticky="w e n")
-        for item in [str(i) for i in range(1, 15)]:
-            modifyInputs[0]["orbiter"].insert(tk.END, item)
-
         modifyBoxes = []
         modifyBoxesWrapper = tk.Frame(modifyBox)
         modifyBoxesWrapper.grid(column=0, row=2)
@@ -143,12 +154,63 @@ class mainWindow(tk.Frame):
         modifyInputs[-1]["mass"].grid(column=1, row=0)
         modifyInputs.append({})
         modifyInputs[-1]["create"] = tk.Button(modifyBoxesWrapper2, text="Commit changes",
-                                               command = self.funcs[3])
+                                               command = None)
         modifyInputs[-1]["create"].grid(column=1, row=0, padx=5, pady=5, sticky="w e n s")
+
+        self.modifyInputs = modifyInputs
 
     def renderGraphs(self):
         pass
 
-root = tk.Tk()
-memes = mainWindow(root)
-memes.mainloop()
+    def toggleRunning(self):
+        self.running = True if self.running == False else False
+
+    def restartSystem(self):
+        self.orbiters = []
+        self.ax.clear()
+        for i in range(0, self.systemInputs[0].get()):
+            pos_ = (rand(3)*1000)-400
+            orbiter(pos=pos_,
+                    vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
+                    mass=np.random.ranf()*10000,
+                    axis=self.ax,
+                    orbiters=self.orbiters)
+        orbiter(mass=7500000.,
+                pos=np.array([0., 0., 0.]),
+                vel=np.array([0., 0., 0.]),
+                axis=self.ax,
+                orbiters=self.orbiters)
+        self.updateList()
+        print self.orbiters
+
+    def addOrbiter(self):
+        orbiter(pos=np.array([float(self.createInputs[0]["x"].get()),
+                              float(self.createInputs[0]["y"].get()),
+                              float(self.createInputs[0]["z"].get())]),
+                vel=np.array([float(self.createInputs[1]["x"].get()),
+                              float(self.createInputs[1]["y"].get()),
+                              float(self.createInputs[1]["z"].get())]),
+                acc=np.array([float(self.createInputs[2]["x"].get()),
+                              float(self.createInputs[2]["y"].get()),
+                              float(self.createInputs[2]["z"].get())]),
+                axis=self.ax,
+                mass=float(self.createInputs[3]["mass"].get()),
+                orbiters=self.orbiters)
+        self.updateList()
+
+    def updateList(self):
+        self.modifyInputs[0]["orbiter"]["menu"].delete(0, tk.END)
+        for orb in self.orbiters:
+            self.modifyInputs[0]["orbiter"]["menu"].add_command(label=str(orb),
+                                                                command=tk._setit(self.selectedOrbiter,
+                                                                                  str(orb)))
+
+    def selectOrbiter(self):
+        print "memes"
+        orb = [x for x in self.orbiters if str(x) == self.selectedOrbiter.get()][0]
+        print("Selected orbiter: {}".format(orb))
+        for i in range(0, 3):
+            for j in ["x", "y", "z"]:
+                self.modifyInputs[i][j].delete(0, tk.END)
+        for input in [self.modifyInputs[0][["x", "y", "z"][i]] for i in range(0, 3)]:
+            input.insert(0, orb.pos[i])
