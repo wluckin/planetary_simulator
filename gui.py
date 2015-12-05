@@ -4,6 +4,7 @@ import Tkinter as tk
 from orbiter import orbiter
 import numpy as np
 from numpy.random import rand
+from editableList import EditableOptionMenu
 
 class mainWindow(tk.Frame):
     """ Represents the main entry point of the application """
@@ -114,8 +115,8 @@ class mainWindow(tk.Frame):
             column=0, row=0, sticky="n e w s")
         modifyInputs.append({})
         self.selectedOrbiter = tk.StringVar(modifyBox)
-        modifyInputs[0]["orbiter"] = tk.OptionMenu(modifyBox, self.selectedOrbiter, "memes",
-                                                   command=self.selectOrbiter)
+        modifyInputs[0]["orbiter"] = EditableOptionMenu(modifyBox, self.selectedOrbiter, "memes",
+                                                        command=self.selectOrbiter)
         modifyInputs[0]["orbiter"].grid(column=0, row=1, sticky="w e n")
         modifyBoxes = []
         modifyBoxesWrapper = tk.Frame(modifyBox)
@@ -163,7 +164,12 @@ class mainWindow(tk.Frame):
         pass
 
     def toggleRunning(self):
-        self.running = True if self.running == False else False
+        if self.running:
+            self.timeInputs[0].config(text="Resume the simulation")
+            self.running = False
+        else:
+            self.timeInputs[0].config(text="Pause the simulation")
+            self.running = True
 
     def restartSystem(self):
         self.orbiters = []
@@ -199,18 +205,10 @@ class mainWindow(tk.Frame):
         self.updateList()
 
     def updateList(self):
-        self.modifyInputs[0]["orbiter"]["menu"].delete(0, tk.END)
+        self.modifyInputs[0]["orbiter"].delete_option(0, tk.END)
         for orb in self.orbiters:
-            self.modifyInputs[0]["orbiter"]["menu"].add_command(label=str(orb),
-                                                                command=tk._setit(self.selectedOrbiter,
-                                                                                  str(orb)))
+            self.modifyInputs[0]["orbiter"].insert_option(0, str(orb))
 
-    def selectOrbiter(self):
-        print "memes"
-        orb = [x for x in self.orbiters if str(x) == self.selectedOrbiter.get()][0]
+    def selectOrbiter(self, selected):
+        orb = [x for x in self.orbiters if str(x) == selected].get(0)
         print("Selected orbiter: {}".format(orb))
-        for i in range(0, 3):
-            for j in ["x", "y", "z"]:
-                self.modifyInputs[i][j].delete(0, tk.END)
-        for input in [self.modifyInputs[0][["x", "y", "z"][i]] for i in range(0, 3)]:
-            input.insert(0, orb.pos[i])
