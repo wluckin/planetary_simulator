@@ -1,10 +1,11 @@
-#""" Will Luckin <will@luckin.co.uk> """
+""" Will Luckin <will@luckin.co.uk> """
 
 import numpy as np
 from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import time
+import json
 from mpl_toolkits.mplot3d import Axes3D
 import Tkinter as tk
 from gui import mainWindow
@@ -41,7 +42,8 @@ ax.set_zlim(-600, 600)
 
 # Initialise the GUI
 root = tk.Tk()
-window = mainWindow(root, [], True, ax)
+with open("./configs/simple.json") as f:
+    window = mainWindow(root, [], True, ax, system=json.load(f))
 
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
@@ -54,31 +56,33 @@ window = mainWindow(root, [], True, ax)
 # danwoods = orbiter(vel=np.array([0., 50.]))
 # danwoods2 = orbiter(vel=np.array([0., -20.]), pos=np.array([0., 100.]), mass=2.)
 
-# Generate some random particles
-for i in range(0, PARTICLES):
-    pos_ = (rand(3)*1000)-400
-    line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]), np.array([pos_[2]]))
-    orbiter(pos=pos_,
-            line=line,
-            vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
-            mass=np.random.ranf()*10000,
-            axis=ax,
-            orbiters=window.orbiters)
+# # Generate some random particles
+# for i in range(0, PARTICLES):
+#     pos_ = (rand(3)*1000)-400
+#     line = ax.plot(np.array([pos_[0]]), np.array([pos_[1]]), np.array([pos_[2]]))
+#     orbiter(pos=pos_,
+#             line=line,
+#             vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
+#             mass=np.random.ranf()*10000,
+#             axis=ax,
+#             orbiters=window.orbiters)
 
-# danwoods1 = orbiter(mass=10000,
-#                     pos=np.array([400., 400., 400.]),
-#                     vel=np.array([200., 0., 0.]))
+# # danwoods1 = orbiter(mass=10000,
+# #                     pos=np.array([400., 400., 400.]),
+# #                     vel=np.array([200., 0., 0.]))
 
-# danwoods2 = orbiter(mass=10000,
-#                     pos=np.array([-400., 400., 400.]),
-#                     vel=np.array([0., -200., 0.]))
+# # danwoods2 = orbiter(mass=10000,
+# #                     pos=np.array([-400., 400., 400.]),
+# #                     vel=np.array([0., -200., 0.]))
 
-danwoods = orbiter(mass=7500000.,
-                   pos=np.array([0., 0., 0.]),
-                   vel=np.array([0., 0., 0.]),
-                   axis=ax,
-                   orbiters=window.orbiters)
+# danwoods = orbiter(mass=7500000.,
+#                    pos=np.array([0., 0., 0.]),
+#                    vel=np.array([0., 0., 0.]),
+#                    axis=ax,
+#                    orbiters=window.orbiters,
+#                    name="The Sun")
 
+window.restartSystem()
 window.updateList()
 
 # Keep track of time
@@ -115,5 +119,4 @@ line_ani = anim.FuncAnimation(fig, animate, None,
                               interval=10)
 
 fig.show()
-
-
+window.mainloop()

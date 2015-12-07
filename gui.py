@@ -5,18 +5,23 @@ from orbiter import orbiter
 import numpy as np
 from numpy.random import rand
 from editableList import EditableOptionMenu
+from utils import is_number, convert
 
 class mainWindow(tk.Frame):
     """ Represents the main entry point of the application """
-    def __init__(self, master, orbiters, running, ax):
+    def __init__(self, master, orbiters, running, ax, system=None):
         tk.Frame.__init__(self, master)
         self.orbiters = orbiters
         self.running = running
         self.ax = ax
-        self.grid(column=0, row=0)
+        self.system = system
+        
         self.inputFrame = tk.Frame(self)
         self.renderFrame = tk.Frame(self)
+        
         self.createInputs()
+
+        self.grid(column=0, row=0)
         self.inputFrame.grid(column=0, row=0)
         self.renderFrame.grid(column=1, row=0)
 
@@ -72,7 +77,7 @@ class mainWindow(tk.Frame):
             # Append an empty dictionary to hold the inputs themselves
             createInputs.append({})
             # Register a validation command so that only numbers can be entered
-            validateCommand = self.register(lambda x: x.isdigit() or len(x) == 0)
+            validateCommand = self.register(lambda x: is_number(x) or len(x) == 0)
             # Generate and render the individual input widgets
             createInputs[i]["x"] = tk.Entry(createBoxes[i], vcmd=(validateCommand, "%P"),
                                             validate=tk.ALL, width=8)
@@ -132,7 +137,7 @@ class mainWindow(tk.Frame):
             # Append an empty dictionary to hold the inputs themselves
             modifyInputs.append({})
             # Register a validation command so that only numbers can be entered
-            validateCommand = self.register(lambda x: x.isdigit() or len(x) == 0)
+            validateCommand = self.register(lambda x: is_number(x) or len(x) == 0)
             # Generate and render the individual input widgets
             modifyInputs[i]["x"] = tk.Entry(modifyBoxes[i], vcmd=(validateCommand, "%P"),
                                             validate=tk.ALL, width=8)
@@ -144,6 +149,7 @@ class mainWindow(tk.Frame):
                                             validate=tk.ALL, width=8)
             modifyInputs[i]["z"].grid(column=1, row=2)
 
+        # Add the miscellaneous non-Cartesian bits on their own row
         modifyBoxesWrapper2 = tk.Frame(modifyBox)
         modifyBoxesWrapper2.grid(column=0, row=3, sticky="w")
         modifyBoxes.append(tk.LabelFrame(modifyBoxesWrapper2, text="Miscellaneous", padx=5, pady=5))
@@ -155,15 +161,16 @@ class mainWindow(tk.Frame):
         modifyInputs[-1]["mass"].grid(column=1, row=0)
         modifyInputs.append({})
         modifyInputs[-1]["create"] = tk.Button(modifyBoxesWrapper2, text="Commit changes",
-                                               command = None)
+                                               command = self.modifyOrbiter)
         modifyInputs[-1]["create"].grid(column=1, row=0, padx=5, pady=5, sticky="w e n s")
-
         self.modifyInputs = modifyInputs
+        self.modifyError = tk.Label(modifyBoxesWrapper2, text="Some values were invalid. Please try again")
 
     def renderGraphs(self):
         pass
 
     def toggleRunning(self):
+        """ Pause or unpause the animation dependant on current state """
         if self.running:
             self.timeInputs[0].config(text="Resume the simulation")
             self.running = False
@@ -172,24 +179,35 @@ class mainWindow(tk.Frame):
             self.running = True
 
     def restartSystem(self):
+        """ Regenerate a system at t=0 with the number of orbiters chosen. """
         self.orbiters = []
         self.ax.clear()
-        for i in range(0, self.systemInputs[0].get()):
-            pos_ = (rand(3)*1000)-400
-            orbiter(pos=pos_,
-                    vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
-                    mass=np.random.ranf()*10000,
+        if self.system == None:
+            for i in range(0, self.systemInputs[0].get()):
+                pos_ = (rand(3)*1000)-400
+                orbiter(pos=pos_,
+                        vel=np.array([pos_[1]/2, -pos_[0]/2, (np.random.ranf() - 0.5)*pos_[2]/2]),
+                        mass=np.random.ranf()*10000,
+                        axis=self.ax,
+                        orbiters=self.orbiters)
+            orbiter(mass=7500000.,
+                    pos=np.array([0., 0., 0.]),
+                    vel=np.array([0., 0., 0.]),
                     axis=self.ax,
-                    orbiters=self.orbiters)
-        orbiter(mass=7500000.,
-                pos=np.array([0., 0., 0.]),
-                vel=np.array([0., 0., 0.]),
-                axis=self.ax,
-                orbiters=self.orbiters)
+                    orbiters=self.orbiters,
+                    name="Big thing")
+        else:
+            for i in self.system:
+                i = convert(i)
+                i.update({"axis": self.ax, "orbiters": self.orbiters})
+                orbiter(**i)
         self.updateList()
-        print self.orbiters
+        self.ax.set_xlim(-600, 600)
+        self.ax.set_ylim(-600, 600)
+        self.ax.set_zlim(-600, 600)
 
     def addOrbiter(self):
+        """ Add a new orbiter to the system at current time """
         orbiter(pos=np.array([float(self.createInputs[0]["x"].get()),
                               float(self.createInputs[0]["y"].get()),
                               float(self.createInputs[0]["z"].get())]),
@@ -205,10 +223,47 @@ class mainWindow(tk.Frame):
         self.updateList()
 
     def updateList(self):
+        """ Update the list of orbiters in the 'modify' dropdown to contain only
+        the current orbiters. """
         self.modifyInputs[0]["orbiter"].delete_option(0, tk.END)
         for orb in self.orbiters:
             self.modifyInputs[0]["orbiter"].insert_option(0, str(orb))
 
     def selectOrbiter(self, selected):
-        orb = [x for x in self.orbiters if str(x) == selected].get(0)
-        print("Selected orbiter: {}".format(orb))
+        """ Modify the Entry boxes in the'modify' section to contain the
+        current values of an orbiter. """
+        orb = [x for x in self.orbiters if str(x) == selected][0]
+        for x in self.orbiters:
+            x.reset_color()
+        orb.line.set_color((1, 0, 0))
+        if not orb == None:
+            for i in range(0, 3):
+                q = [orb.pos, orb.vel, orb.acc][i]
+                for j in range(0, 3):
+                    self.modifyInputs[i][["x", "y", "z"][j]].delete(0, tk.END)
+                    self.modifyInputs[i][["x", "y", "z"][j]].insert(0, int(q[j]))
+            self.modifyInputs[-2]["mass"].delete(0, tk.END)
+            self.modifyInputs[-2]["mass"].insert(0, int(orb.mass))
+
+    def modifyOrbiter(self):
+        """ Commit the changes in the modify boxes to the state of the selected
+        orbiter at current time. """
+        try:
+            selected = self.selectedOrbiter.get()
+            orb = [x for x in self.orbiters if str(x) == selected][0]
+            if not orb == None:
+                pos_ = [float(self.modifyInputs[0][["x", "y", "z"][j]].get()) for j in range(0, 3)]
+                vel_ = [float(self.modifyInputs[1][["x", "y", "z"][j]].get()) for j in range(0, 3)]
+                acc_ = [float(self.modifyInputs[2][["x", "y", "z"][j]].get()) for j in range(0, 3)]
+                mass_ = float(self.modifyInputs[-2]["mass"].get())
+                orb.pos = np.array(pos_)
+                orb.vel = np.array(vel_)
+                orb.acc = np.array(acc_)
+                orb.mass = mass_
+                self.modifyError.grid_forget()
+        except IndexError:
+            # Selected an orbiter that doesn't exist anymore
+            self.updateList()
+        except ValueError:
+            # Entered invalid values
+            self.modifyError.grid(column=0, row=1)
