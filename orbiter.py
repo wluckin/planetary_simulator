@@ -6,9 +6,9 @@ from numpy.linalg import norm
 colourmap = cm.get_cmap("winter")
 
 # G
-g = 5.
+g = 6.67408e-11
 # Speed of light
-c = 3e8
+c = 299792458
 
 def mass_to_color(mass, max_mass):
     """ Takes a mass and returns a matplotlib color value """
@@ -17,13 +17,12 @@ def mass_to_color(mass, max_mass):
 class orbiter(object):
     """ Represent a gravitational object """
     def __init__(self, **kwargs):
-        print "args recieved = {}".format(kwargs)
         self.mass = kwargs.get("mass") or 1.
         self.pos = np.array(kwargs.pop("pos", [0., 0., 0.]))
         self.vel = np.array(kwargs.pop("vel", [0., 0., 0.]))
         self.acc = np.array(kwargs.pop("acc", [0., 0., 0.]))
         self.ax = kwargs.pop("axis")
-        self.radius = 0.2*self.mass**(1/3.)
+        self.radius = 600000.0
         self.line = kwargs.pop("line", self.ax.plot(np.array([self.pos[0]]),
                                                     np.array([self.pos[1]]),
                                                     np.array([self.pos[2]])))[0]
@@ -33,7 +32,7 @@ class orbiter(object):
         self.acc_ = self.acc
         self.orbiters = kwargs.pop("orbiters")
 
-        self.line.set_color(mass_to_color(self.mass, 7500000))
+        self.line.set_color(mass_to_color(self.mass, 2e30))
         
         self.orbiters.append(self)
 
@@ -87,13 +86,14 @@ class orbiter(object):
                     # Calculate the acceleration based upon all other objects
                     def r_(r):
                         """ Convenience function """
-                        return 0.5*dt**2*(g*orb.mass/(norm(r)**3))*r
+                        return (6.67e-11*orb.mass/(norm(r)**3))*r
+                               # 0.75*dt**2*(((g**2)*(orb.mass**2))/(c**2*norm(r)**3)))
                     r_1 = r_(r)
                     r_2= r_(r+((1/2.)*r_1))
                     r_3 = r_(r+((1/2.)*r_2))
                     r_4 = r_(r+r_3)
                     r_total = (1/6.0)*(r_1 + r_4 + 2*(r_2 + r_3))
-                    self.acc_ -= (r_total/(0.5*dt**2))
+                    self.acc_ -= r_total
 
     def update(self, dt):
         """ Commits the acceleration changes made after all calculations are complete """

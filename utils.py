@@ -6,7 +6,10 @@ def is_number(x):
         float(x)
         return True
     except ValueError:
-        return False
+        if x == "-":
+            return True
+        else:
+            return False
 
 def convert(data):
     if isinstance(data, basestring):

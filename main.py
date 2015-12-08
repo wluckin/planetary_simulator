@@ -1,37 +1,17 @@
 """ Will Luckin <will@luckin.co.uk> """
 
-import numpy as np
-from numpy.random import rand
 import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import time
-import json
-from mpl_toolkits.mplot3d import Axes3D
 import Tkinter as tk
 from gui import mainWindow
-from orbiter import orbiter
-
-# import sympy as s
-# from sympy.parsing.sympy_parser import parse_expr
-
-# def eval_expr(expr, x_):
-#     """ Evaluate the expression with a given x value. If the expression
-#     isn't numerical at this point, return false. Else, return the value.
-#     """
-#     try:
-#         x = s.symbols("x")
-#         return float(expr.subs(x, x_))
-#     except TypeError:
-#         return False
+from mpl_toolkits.mplot3d import Axes3D
 
 # # Accept input from the user as a sympy expression; handle all possible errors
 # print "Please input an expression."
 # expr = raw_input()
 # test = parse_expr(expr)
 # print eval_expr(test, 1)
-dt = 16./1000.
-
-PARTICLES = 5
 
 # Generate figure and axis object
 fig = plt.figure()
@@ -43,7 +23,7 @@ ax.set_zlim(-600, 600)
 # Initialise the GUI
 root = tk.Tk()
 with open("./configs/simple.json") as f:
-    window = mainWindow(root, [], True, ax, system=json.load(f))
+    window = mainWindow(root, [], True, ax, system=None)
 
 
 # danwoods = orbiter(vel=np.array([0., 50.]), pos=np.array([-200., 0.]))
@@ -98,9 +78,9 @@ def animate(N):
         dt_ = time.clock() - systime
         systime = time.clock()
         for i in window.orbiters:
-            i.calcInteractions(dt_)
+            i.calcInteractions(dt_*window.timescale*1e5)
         for i in window.orbiters:
-            i.update(dt_)
+            i.update(dt_*window.timescale*1e5)
             i.draw()
     else:
         global systime
