@@ -86,8 +86,8 @@ class orbiter(object):
                     # Calculate the acceleration based upon all other objects
                     def r_(r):
                         """ Convenience function """
-                        return (6.67e-11*orb.mass/(norm(r)**3))*r
-                               # 0.75*dt**2*(((g**2)*(orb.mass**2))/(c**2*norm(r)**3)))
+                        return ((6.67e-11*orb.mass/(norm(r)**3))*r +
+                                (((g**2)*(orb.mass**2))/(c**2*norm(r)**3)))
                     r_1 = r_(r)
                     r_2= r_(r+((1/2.)*r_1))
                     r_3 = r_(r+((1/2.)*r_2))
